@@ -1,6 +1,6 @@
 /*
  * Copyright 2013 Hannes Janetzek
- * Copyright 2017, 2018 Gustl22
+ * Copyright 2017-2019 Gustl22
  *
  * This file is part of the OpenScienceMap project (http://www.opensciencemap.org).
  *
@@ -20,7 +20,6 @@ package org.oscim.layers.tile.buildings;
 import org.oscim.backend.canvas.Color;
 import org.oscim.core.GeometryBuffer;
 import org.oscim.core.Tag;
-import org.oscim.utils.ColorUtil;
 import org.oscim.utils.ColorsCSS;
 import org.oscim.utils.Tessellator;
 import org.oscim.utils.geom.GeometryUtils;
@@ -28,23 +27,13 @@ import org.oscim.utils.math.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * Provides utils for S3DB layers.
  */
 public final class S3DBUtils {
     private static final Logger log = LoggerFactory.getLogger(S3DBUtils.class);
-
-    /* TODO get from theme */
-    private final static double HSV_S = 0.7;
-    private final static double HSV_V = 1.2;
 
     // Toggle this to debug and improve ridge calculation, you can see the faults in map then.
     private static final boolean IMPROVE_RIDGE_CALCULATION = false;
@@ -317,6 +306,8 @@ public final class S3DBUtils {
     public static boolean calcPyramidalMesh(GeometryBuffer element, float minHeight, float maxHeight) {
         float[] points = element.points;
         int[] index = element.index;
+        float[] topPoint = new float[3];
+        topPoint[2] = maxHeight;
 
         for (int i = 0, pointPos = 0; i < index.length; i++) {
             if (index[i] < 0) {
@@ -327,27 +318,13 @@ public final class S3DBUtils {
             int numPoints = index[i] / 2;
             if (numPoints < 0) continue;
 
-            float centerX = 0;
-            float centerY = 0;
+            // Init top of roof (attention with pointPos)
+            GeometryUtils.center(points, pointPos, numPoints << 1, topPoint);
 
             List<float[]> point3Fs = new ArrayList<>();
-
-            // Calculate center and load points
-            for (int j = 0; j < (numPoints * 2); j += 2, pointPos += 2) {
-                float x = points[pointPos];
-                float y = points[pointPos + 1];
-
-                point3Fs.add(new float[]{x, y, minHeight});
-
-                centerX += x;
-                centerY += y;
-            }
-
-            centerX = centerX / numPoints;
-            centerY = centerY / numPoints;
-
-            // Init top of roof
-            float[] topPoint = new float[]{centerX, centerY, maxHeight};
+            // Load points
+            for (int j = 0; j < (numPoints * 2); j += 2, pointPos += 2)
+                point3Fs.add(new float[]{points[pointPos], points[pointPos + 1], minHeight});
 
             // Write index: index gives the first point of triangle mesh (divided 3)
             int[] meshIndex = new int[numPoints * 3];
@@ -430,7 +407,7 @@ public final class S3DBUtils {
 
             int countConcavAngles = 0;
             for (Byte simpleAngle : simpleAngles) {
-                if (simpleAngle > 1)
+                if (simpleAngle < -1)
                     countConcavAngles++;
             }
 
@@ -464,14 +441,14 @@ public final class S3DBUtils {
                 byte direction = simpleAngles.get(shift);
                 if (direction == 0) {
                     continue; // direction is similar to last one
-                } else if (direction > 0) {
-                    // If shape turns right
+                } else if (direction < 0) {
+                    // If shape turns left (concave)
                     float[] positionRidgeA = null;
                     float[] positionRidgeB = null;
 
                     // Check two previous corners
-                    Integer indexPrevious = getIndexPreviousLeftTurn(shift, simpleAngles);
-                    Integer indexPrevious2 = getIndexPreviousLeftTurn(indexPrevious == null ? shift - 1 : indexPrevious, simpleAngles);
+                    Integer indexPrevious = getIndexPreviousConvexTurn(shift, simpleAngles);
+                    Integer indexPrevious2 = getIndexPreviousConvexTurn(indexPrevious == null ? shift - 1 : indexPrevious, simpleAngles);
 
                     if (indexPrevious != null && indexPrevious2 != null) {
                         // Write two previous
@@ -494,8 +471,8 @@ public final class S3DBUtils {
                     }
 
                     // Check two next corners
-                    Integer indexNext = getIndexNextLeftTurn(shift, simpleAngles);
-                    Integer indexNext2 = getIndexNextLeftTurn(indexNext == null ? shift + 1 : indexNext, simpleAngles);
+                    Integer indexNext = getIndexNextConvexTurn(shift, simpleAngles);
+                    Integer indexNext2 = getIndexNextConvexTurn(indexNext == null ? shift + 1 : indexNext, simpleAngles);
 
                     if (indexNext != null && indexNext2 != null) {
                         if (ridgePoints.get(indexNext) == null) {
@@ -552,7 +529,7 @@ public final class S3DBUtils {
 
                     // Set opposite ridge, if only one concave corner
                     if (countConcavAngles == 1) {
-                        Integer opposite = getIndexNextLeftTurn(indexNext2, simpleAngles);
+                        Integer opposite = getIndexNextConvexTurn(indexNext2, simpleAngles);
                         if (opposite != null) {
                             if (isGabled)
                                 gablePoints.remove(opposite);
@@ -565,12 +542,12 @@ public final class S3DBUtils {
                     isOdd = false;
                     continue;
                 }
-                // Regular right angle (left turn)
+                // Regular right angle (convex turn)
                 if (isOdd) {
                     isOdd = false;
                     continue;
                 }
-                if (simpleAngles.get(shift) < -1) {
+                if (simpleAngles.get(shift) > 1) {
                     isOdd = true;
                 }
                 if (ridgePoints.containsKey(shift) && ridgeLines.containsKey(shift)) {
@@ -580,7 +557,7 @@ public final class S3DBUtils {
                 if (currentRidgeInd != null) {
                     float[] intersection;
                     // If is gabled, then use the normal line as intersection instead of bisection, but if the angle is not right, this is usually not a gable point
-                    if (isGabled && direction < -1) {
+                    if (isGabled && direction > 1) {
                         if (ridgePoints.get(currentRidgeInd) == null) {
                             log.debug("Gabled intersection calc failed");
                             currentRidgeInd = null;
@@ -605,7 +582,7 @@ public final class S3DBUtils {
                         currentRidgeInd = shift;
                     }
                 } else {
-                    Integer indexNext = getIndexNextLeftTurn(shift, simpleAngles);
+                    Integer indexNext = getIndexNextConvexTurn(shift, simpleAngles);
                     if (indexNext == null) continue;
                     if (!ridgeLines.containsKey(shift)) {
                         ridgeLines.put(shift, normVectors.get(indexNext));
@@ -637,7 +614,7 @@ public final class S3DBUtils {
                 }
 
                 // Only remove ridgePoint at concave corners
-                if (!isGabled || simpleAngles.get(key) > 0) {
+                if (!isGabled || simpleAngles.get(key) < 0) {
                     boolean isIn = GeometryUtils.pointInPoly(ridgeEntry.getValue()[0], ridgeEntry.getValue()[1], points, points.length, 0);
                     if (!isIn) {
                         // FIXME can improve shapes with concaves that intersect each other and remove shapes which have ridgepoints outside the outline
@@ -844,7 +821,7 @@ public final class S3DBUtils {
 
             int indexStart = getIndicesLongestSide(simpleAngles, lengths, null)[0];
             if (orientationAcross) {
-                Integer tmp = getIndexPreviousLeftTurn(indexStart, simpleAngles);
+                Integer tmp = getIndexPreviousConvexTurn(indexStart, simpleAngles);
                 if (tmp == null) {
                     tmp = getIndexNextTurn(indexStart, simpleAngles);
                 }
@@ -1074,68 +1051,38 @@ public final class S3DBUtils {
 
     /**
      * @param color    the color as string (see http://wiki.openstreetmap.org/wiki/Key:colour)
-     * @param roof     declare if color is used for roofs
+     * @param hsv      the HSV color values to modify given color
      * @param relative declare if colors are modified relative to their values
      * @return the color as integer (8 bit each a, r, g, b)
      */
-    public static int getColor(String color, boolean roof, boolean relative) {
-
-        if (color.charAt(0) == '#') {
-            int c = Color.parseColor(color, Color.CYAN);
-            /* hardcoded colors are way too saturated for my taste */
-            return ColorUtil.modHsv(c, 1.0, 0.4, HSV_V, relative);
-        }
-
-        if (roof) {
-            if ("brown".equals(color))
-                return Color.get(120, 110, 110);
-            if ("red".equals(color))
-                return Color.get(235, 140, 130);
-            if ("green".equals(color))
-                return Color.get(150, 200, 130);
-            if ("blue".equals(color))
-                return Color.get(100, 50, 200);
-        }
-        if ("white".equals(color))
-            return Color.get(240, 240, 240);
-        if ("black".equals(color))
-            return Color.get(86, 86, 86);
-        if ("grey".equals(color) || "gray".equals(color))
-            return Color.get(120, 120, 120);
-        if ("red".equals(color))
-            return Color.get(255, 190, 190);
-        if ("green".equals(color))
-            return Color.get(190, 255, 190);
-        if ("blue".equals(color))
-            return Color.get(190, 190, 255);
-        if ("yellow".equals(color))
-            return Color.get(255, 255, 175);
-        if ("darkgray".equals(color) || "darkgrey".equals(color))
-            return Color.DKGRAY;
-        if ("lightgray".equals(color) || "lightgrey".equals(color))
-            return Color.LTGRAY;
-
+    public static int getColor(String color, Color.HSV hsv, boolean relative) {
         if ("transparent".equals(color))
             return Color.get(0, 1, 1, 1);
 
-        Integer css = ColorsCSS.get(color);
+        int c;
+        if (color.charAt(0) == '#')
+            c = Color.parseColor(color, Color.CYAN);
+        else {
+            Integer css = ColorsCSS.get(color);
+            if (css == null) {
+                log.debug("unknown color:{}", color);
+                c = Color.CYAN;
+            } else
+                c = css;
+        }
 
-        if (css != null)
-            return ColorUtil.modHsv(css, 1.0, HSV_S, HSV_V, relative);
-
-        log.debug("unknown color:{}", color);
-        return 0;
+        return hsv.mod(c, relative);
     }
 
     /**
-     * @return the index of next left turn after specified index
+     * @return the index of convex turn after specified index or null, if it's concave.
      */
-    private static Integer getIndexNextLeftTurn(int index, List<Byte> simpleAngles) {
+    private static Integer getIndexNextConvexTurn(int index, List<Byte> simpleAngles) {
         for (int i = index + 1; i < simpleAngles.size() + index; i++) {
             int iMod = i % simpleAngles.size();
-            if (simpleAngles.get(iMod) < 0) {
+            if (simpleAngles.get(iMod) > 0) {
                 return iMod;
-            } else if (simpleAngles.get(iMod) > 0) {
+            } else if (simpleAngles.get(iMod) < 0) {
                 return null;
             }
         }
@@ -1156,14 +1103,14 @@ public final class S3DBUtils {
     }
 
     /**
-     * @return the index of previous left turn at specified index
+     * @return the index of previous convex turn at specified index
      */
-    private static Integer getIndexPreviousLeftTurn(int index, List<Byte> simpleAngles) {
+    private static Integer getIndexPreviousConvexTurn(int index, List<Byte> simpleAngles) {
         for (int i = simpleAngles.size() + index - 1; i >= 0; i--) {
             int iMod = i % simpleAngles.size();
-            if (simpleAngles.get(iMod) < 0) {
+            if (simpleAngles.get(iMod) > 0) {
                 return iMod;
-            } else if (simpleAngles.get(iMod) > 0) {
+            } else if (simpleAngles.get(iMod) < 0) {
                 return null;
             }
         }
@@ -1179,10 +1126,10 @@ public final class S3DBUtils {
         Integer concaveStart = null;
         for (int i = 0; i < size; i++) {
             if (indexStart != null && concaveStart != null) break;
-            if (indexStart == null && simpleAngles.get(i) < -1) {
+            if (indexStart == null && simpleAngles.get(i) > 1) {
                 // Use first angle as start index;
                 indexStart = i;
-            } else if (concaveStart == null && simpleAngles.get(i) > 1) {
+            } else if (concaveStart == null && simpleAngles.get(i) < -1) {
                 // A real concave corner
                 concaveStart = i;
             }
@@ -1203,9 +1150,9 @@ public final class S3DBUtils {
 
         // Calculate longest side with right angle next to it.
         int[] iLongSide = getIndicesLongestSide(simpleAngles, lengths, indexStart);
-        if (simpleAngles.get(iLongSide[1]) > -2) {
+        if (simpleAngles.get(iLongSide[1]) < 2) {
             // If angle is not good to start a ridge use previous
-            indexStart = getIndexPreviousLeftTurn(iLongSide[0], simpleAngles);
+            indexStart = getIndexPreviousConvexTurn(iLongSide[0], simpleAngles);
         } else {
             indexStart = iLongSide[1]; // Get side next to longest one
         }
@@ -1227,8 +1174,8 @@ public final class S3DBUtils {
         int size = simpleAngles.size();
         if (indexStart == null) {
             for (int i = 0; i < size; i++) {
-                if (simpleAngles.get(i) < 0) {
-                    // Use first angle as start index;
+                if (simpleAngles.get(i) > 0) {
+                    // Use first convex angle as start index;
                     indexStart = i;
                     break;
                 }
@@ -1263,71 +1210,98 @@ public final class S3DBUtils {
 
     /**
      * @param material the material as string (see http://wiki.openstreetmap.org/wiki/Key:material and following pages)
-     * @param roof     declare if material is used for roofs
+     * @param hsv      the HSV color values to modify given material
      * @return the color as integer (8 bit each a, r, g, b)
      */
-    public static int getMaterialColor(String material, boolean roof) {
+    public static int getMaterialColor(String material, Color.HSV hsv, boolean relative) {
 
-        if (roof) {
-            if ("glass".equals(material))
-                return Color.fade(Color.get(130, 224, 255), 0.9f);
+        int c;
+        if (material.charAt(0) == '#') {
+            c = Color.parseColor(material, Color.CYAN);
+        } else {
+            switch (material) {
+                case "roof_tiles":
+                    c = Color.get(216, 167, 111);
+                    break;
+                case "tile":
+                    c = Color.get(216, 167, 111);
+                    break;
+                case "concrete":
+                case "cement_block":
+                    c = Color.get(210, 212, 212);
+                    break;
+                case "metal":
+                    c = 0xFFC0C0C0;
+                    break;
+                case "tar_paper":
+                    c = 0xFF969998;
+                    break;
+                case "eternit":
+                    c = Color.get(216, 167, 111);
+                    break;
+                case "tin":
+                    c = 0xFFC0C0C0;
+                    break;
+                case "asbestos":
+                    c = Color.get(160, 152, 141);
+                    break;
+                case "glass":
+                    c = Color.fade(Color.get(130, 224, 255), 0.6f);
+                    break;
+                case "slate":
+                    c = 0xFF605960;
+                    break;
+                case "zink":
+                    c = Color.get(180, 180, 180);
+                    break;
+                case "gravel":
+                    c = Color.get(170, 130, 80);
+                    break;
+                case "copper":
+                    // same as roof color:green
+                    c = Color.get(150, 200, 130);
+                    break;
+                case "wood":
+                    c = Color.get(170, 130, 80);
+                    break;
+                case "grass":
+                    c = 0xFF50AA50;
+                    break;
+                case "stone":
+                    c = Color.get(206, 207, 181);
+                    break;
+                case "plaster":
+                    c = Color.get(236, 237, 181);
+                    break;
+                case "brick":
+                    c = Color.get(255, 217, 191);
+                    break;
+                case "stainless_steel":
+                    c = Color.get(153, 157, 160);
+                    break;
+                case "gold":
+                    c = 0xFFFFD700;
+                    break;
+                default:
+                    c = Color.CYAN;
+                    log.debug("unknown material:{}", material);
+                    break;
+            }
         }
-        if ("roof_tiles".equals(material))
-            return Color.get(216, 167, 111);
-        if ("tile".equals(material))
-            return Color.get(216, 167, 111);
 
-        if ("concrete".equals(material) ||
-                "cement_block".equals(material))
-            return Color.get(210, 212, 212);
-
-        if ("metal".equals(material))
-            return 0xFFC0C0C0;
-        if ("tar_paper".equals(material))
-            return 0xFF969998;
-        if ("eternit".equals(material))
-            return Color.get(216, 167, 111);
-        if ("tin".equals(material))
-            return 0xFFC0C0C0;
-        if ("asbestos".equals(material))
-            return Color.get(160, 152, 141);
-        if ("glass".equals(material))
-            return Color.get(130, 224, 255);
-        if ("slate".equals(material))
-            return 0xFF605960;
-        if ("zink".equals(material))
-            return Color.get(180, 180, 180);
-        if ("gravel".equals(material))
-            return Color.get(170, 130, 80);
-        if ("copper".equals(material))
-            // same as roof color:green
-            return Color.get(150, 200, 130);
-        if ("wood".equals(material))
-            return Color.get(170, 130, 80);
-        if ("grass".equals(material))
-            return 0xFF50AA50;
-        if ("stone".equals(material))
-            return Color.get(206, 207, 181);
-        if ("plaster".equals(material))
-            return Color.get(236, 237, 181);
-        if ("brick".equals(material))
-            return Color.get(255, 217, 191);
-        if ("stainless_steel".equals(material))
-            return Color.get(153, 157, 160);
-        if ("gold".equals(material))
-            return 0xFFFFD700;
-
-        log.debug("unknown material:{}", material);
-
-        return 0;
+        return hsv.mod(c, relative);
     }
 
     /**
      * @param normVectors the normalized vectors
      * @return a list of simple angles:
      * 0           straight
-     * (+/-) 1     (right/left) obtuse angle
-     * (+/-) 2     (right/left) right angle (or acute angle)
+     * (+/-) 1     (convex/concave) obtuse angle
+     * (+/-) 2     (convex/concave) right angle (or acute angle)
+     * <p>
+     * Note lhs coordinate system.
+     * convex: turns right
+     * concave: turns left
      */
     private static List<Byte> getSimpleAngles(List<float[]> normVectors) {
         int size = normVectors.size();
@@ -1343,8 +1317,8 @@ public final class S3DBUtils {
             float angle = (float) Math.acos(Math.abs(val) > 1 ? Math.signum(val) : val);
             // angles.add(angle);
 
-            // Positive is turns right, negative turns left
-            byte simpAngle = (byte) Math.signum(v1[0] * (-v2[1]) + v1[1] * v2[0]);
+            // Positive turns right (convex), negative turns left (concave)
+            byte simpAngle = (byte) Math.signum(v1[0] * v2[1] - v1[1] * v2[0]);
             if (angle > (MathUtils.PI / 2) - threshold) {
                 // Right angle
                 simpAngle *= 2;

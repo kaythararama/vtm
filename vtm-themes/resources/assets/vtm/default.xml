@@ -3,6 +3,16 @@
     version="1" xmlns="http://opensciencemap.org/rendertheme"
     xsi:schemaLocation="http://opensciencemap.org/rendertheme https://raw.githubusercontent.com/mapsforge/vtm/master/resources/rendertheme.xsd">
 
+    <!--###### TRANSFORM tags ######-->
+    <tag-transform k="roof:colour" k-lib="roof:colour" v="blue" v-lib="#4e7ee0" />
+    <tag-transform k="roof:colour" k-lib="roof:colour" v="green" v-lib="#3ed889" />
+    <tag-transform k="roof:colour" k-lib="roof:colour" v="red" v-lib="#ad4340" />
+    <tag-transform k="roof:colour" k-lib="roof:colour" v="yellow" v-lib="#e5d522" />
+    <tag-transform k="building:colour" k-lib="building:colour" v="blue" v-lib="#416fcc" />
+    <tag-transform k="building:colour" k-lib="building:colour" v="green" v-lib="#38c459" />
+    <tag-transform k="building:colour" k-lib="building:colour" v="red" v-lib="#cc3733" />
+    <tag-transform k="building:colour" k-lib="building:colour" v="yellow" v-lib="#f4e216" />
+
     <!--###### TEXT styles ######-->
 
     <!--default label-->
@@ -35,7 +45,8 @@
     <!--references-->
     <style-text style="bold" fill="#606060" id="ref" k="ref" priority="2" size="12" stroke="#ffffff"
         stroke-width="2.0" />
-    <style-text caption="true" id="ref-caption" use="ref" />
+    <style-text caption="true" style="bold" fill="#ffffff" id="ref-caption" k="ref" priority="2"
+        size="12" bg-fill="#45a976" />
     <!--ferry-->
     <style-text style="bold" fill="#606060" id="ferry" k="name" size="12" stroke="#ffffff"
         stroke-width="2.0" />
@@ -637,7 +648,8 @@
                 </m>
             </m>
             <m zoom-min="17">
-                <extrusion line-color="#ffd9d8d6" side-color="#eaecebe9" top-color="#eaf9f8f6" />
+                <extrusion hsv-s="0.5" hsv-v="1.2" line-color="#ffd9d8d6" side-color="#eaecebe9"
+                    top-color="#eaf9f8f6" />
             </m>
             <!--Only add house numbers where no name exist-->
             <m k="addr:housenumber" zoom-min="18">
@@ -1033,11 +1045,11 @@
         <m k="admin_level">
             <m v="4">
                 <line fix="true" stipple="6" stipple-stroke="#888888" stipple-width="1.0"
-                    stroke="#dadada" width="2.0" />
+                    stroke="#dadada" width="1.8" />
             </m>
             <m v="2">
                 <line fix="true" stipple="8" stipple-stroke="#647b9c" stipple-width="1.0"
-                    stroke="#bbbbbb" width="2.5" />
+                    stroke="#bbbbbb" width="2.0" />
             </m>
         </m>
         <!-- </m> -->

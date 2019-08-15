@@ -1,9 +1,12 @@
 /*
  * Copyright 2010, 2011, 2012 mapsforge.org
  * Copyright 2013 Hannes Janetzek
- * Copyright 2016-2018 devemux86
+ * Copyright 2016-2019 devemux86
  * Copyright 2016-2017 Longri
  * Copyright 2016 Andrey Novikov
+ * Copyright 2018-2019 Gustl22
+ * Copyright 2018 Izumi Kawashima
+ * Copyright 2019 Murray Hughes
  *
  * This file is part of the OpenScienceMap project (http://www.opensciencemap.org).
  *
@@ -38,18 +41,12 @@ import org.oscim.theme.rule.Rule;
 import org.oscim.theme.rule.Rule.Closed;
 import org.oscim.theme.rule.Rule.Selector;
 import org.oscim.theme.rule.RuleBuilder;
-import org.oscim.theme.styles.AreaStyle;
+import org.oscim.theme.styles.*;
 import org.oscim.theme.styles.AreaStyle.AreaBuilder;
-import org.oscim.theme.styles.CircleStyle;
 import org.oscim.theme.styles.CircleStyle.CircleBuilder;
-import org.oscim.theme.styles.ExtrusionStyle;
 import org.oscim.theme.styles.ExtrusionStyle.ExtrusionBuilder;
-import org.oscim.theme.styles.LineStyle;
 import org.oscim.theme.styles.LineStyle.LineBuilder;
-import org.oscim.theme.styles.RenderStyle;
-import org.oscim.theme.styles.SymbolStyle;
 import org.oscim.theme.styles.SymbolStyle.SymbolBuilder;
-import org.oscim.theme.styles.TextStyle;
 import org.oscim.theme.styles.TextStyle.TextBuilder;
 import org.oscim.utils.FastMath;
 import org.oscim.utils.Utils;
@@ -61,11 +58,7 @@ import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Set;
-import java.util.Stack;
+import java.util.*;
 
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.Float.parseFloat;
@@ -79,14 +72,20 @@ public class XmlThemeBuilder extends DefaultHandler {
     private static final int RENDER_THEME_VERSION_VTM = 1;
 
     private enum Element {
-        RENDER_THEME, RENDERING_INSTRUCTION, RULE, STYLE, ATLAS, RENDERING_STYLE
+        RENDER_THEME, RENDERING_INSTRUCTION, RULE, STYLE, ATLAS, RECT, RENDERING_STYLE, TAG_TRANSFORM
     }
 
     private static final String ELEMENT_NAME_RENDER_THEME = "rendertheme";
     private static final String ELEMENT_NAME_STYLE_MENU = "stylemenu";
     private static final String ELEMENT_NAME_MATCH_MAPSFORGE = "rule";
     private static final String ELEMENT_NAME_MATCH_VTM = "m";
-    private static final String UNEXPECTED_ELEMENT = "unexpected element: ";
+    private static final String UNEXPECTED_ELEMENT_STACK_NOT_EMPTY = "Stack not empty, unexpected element: ";
+    private static final String UNEXPECTED_ELEMENT_RENDERING_INSTRUCTION_PARENT_ELEMENT_MISMATCH = "Rendering instruction:: Parent element mismatch: unexpected element: ";
+    private static final String UNEXPECTED_ELEMENT_RULE_PARENT_ELEMENT_MISMATCH = "Rule:: Parent element mismatch: unexpected element: ";
+    private static final String UNEXPECTED_ELEMENT_STYLE_PARENT_ELEMENT_MISMATCH = "Style:: Parent element mismatch: unexpected element: ";
+    private static final String UNEXPECTED_ELEMENT_ATLAS_PARENT_ELEMENT_MISMATCH = "Atlas:: Parent element mismatch: unexpected element: ";
+    private static final String UNEXPECTED_ELEMENT_RECT_PARENT_ELEMENT_MISMATCH = "Rect:: Parent element mismatch: unexpected element: ";
+    private static final String UNEXPECTED_ELEMENT_TAG_TRANSFORM_PARENT_ELEMENT_MISMATCH = "Tag transform:: Parent element mismatch: unexpected element: ";
 
     private static final String LINE_STYLE = "L";
     private static final String OUTLINE_STYLE = "O";
@@ -162,11 +161,14 @@ public class XmlThemeBuilder extends DefaultHandler {
     RenderTheme mRenderTheme;
 
     final boolean mMapsforgeTheme;
-    private final float mScale, mScale2;
+    private final float mScale;
 
     private Set<String> mCategories;
     private XmlRenderThemeStyleLayer mCurrentLayer;
     private XmlRenderThemeStyleMenu mRenderThemeStyleMenu;
+
+    private Map<String, String> mTransformKeyMap = new HashMap<>();
+    private Map<Tag, Tag> mTransformTagMap = new HashMap<>();
 
     public XmlThemeBuilder(ThemeFile theme) {
         this(theme, null);
@@ -177,7 +179,6 @@ public class XmlThemeBuilder extends DefaultHandler {
         mThemeCallback = themeCallback;
         mMapsforgeTheme = theme.isMapsforgeTheme();
         mScale = CanvasAdapter.getScale();
-        mScale2 = CanvasAdapter.getScale() * 0.5f;
     }
 
     @Override
@@ -202,7 +203,7 @@ public class XmlThemeBuilder extends DefaultHandler {
     }
 
     RenderTheme createTheme(Rule[] rules) {
-        return new RenderTheme(mMapBackground, mTextScale, rules, mLevels, mMapsforgeTheme);
+        return new RenderTheme(mMapBackground, mTextScale, rules, mLevels, mTransformKeyMap, mTransformTagMap, mMapsforgeTheme);
     }
 
     @Override
@@ -322,7 +323,7 @@ public class XmlThemeBuilder extends DefaultHandler {
                 createAtlas(localName, attributes);
 
             } else if ("rect".equals(localName)) {
-                checkState(localName, Element.ATLAS);
+                checkState(localName, Element.RECT);
                 createTextureRegion(localName, attributes);
 
             } else if ("cat".equals(localName)) {
@@ -368,6 +369,10 @@ public class XmlThemeBuilder extends DefaultHandler {
                 checkState(qName, Element.RENDERING_STYLE);
                 mRenderThemeStyleMenu = new XmlRenderThemeStyleMenu(getStringAttribute(attributes, "id"),
                         getStringAttribute(attributes, "defaultlang"), getStringAttribute(attributes, "defaultvalue"));
+
+            } else if ("tag-transform".equals(localName)) {
+                checkState(qName, Element.TAG_TRANSFORM);
+                tagTransform(localName, attributes);
 
             } else {
                 log.error("unknown element: {}", localName);
@@ -534,7 +539,7 @@ public class XmlThemeBuilder extends DefaultHandler {
                 b.color(value);
 
             else if ("width".equals(name) || "stroke-width".equals(name)) {
-                b.strokeWidth = parseFloat(value) * mScale2 * mStrokeScale;
+                b.strokeWidth = parseFloat(value) * mScale * mStrokeScale;
                 if (line == null) {
                     if (!isOutline)
                         validateNonNegative("width", b.strokeWidth);
@@ -551,7 +556,7 @@ public class XmlThemeBuilder extends DefaultHandler {
                 b.fixed = parseBoolean(value);
 
             else if ("stipple".equals(name))
-                b.stipple = Math.round(parseInt(value) * mScale2 * mStrokeScale);
+                b.stipple = Math.round(parseInt(value) * mScale * mStrokeScale);
 
             else if ("stipple-stroke".equals(name))
                 b.stippleColor(value);
@@ -636,9 +641,10 @@ public class XmlThemeBuilder extends DefaultHandler {
             b.stippleWidth = 1;
             b.stippleColor = b.fillColor;
         } else {
-            b.texture = Utils.loadTexture(mTheme.getRelativePathPrefix(), src, b.symbolWidth, b.symbolHeight, b.symbolPercent);
+            if (src != null)
+                b.texture = Utils.loadTexture(mTheme.getRelativePathPrefix(), src, b.symbolWidth, b.symbolHeight, b.symbolPercent);
 
-            if (hasSymbol) {
+            if (b.texture != null && hasSymbol) {
                 // Line symbol
                 int width = (int) (b.texture.width + b.repeatGap);
                 int height = b.texture.height;
@@ -749,7 +755,8 @@ public class XmlThemeBuilder extends DefaultHandler {
                 logUnknownAttribute(elementName, name, value, i);
         }
 
-        b.texture = Utils.loadTexture(mTheme.getRelativePathPrefix(), src, b.symbolWidth, b.symbolHeight, b.symbolPercent);
+        if (src != null)
+            b.texture = Utils.loadTexture(mTheme.getRelativePathPrefix(), src, b.symbolWidth, b.symbolHeight, b.symbolPercent);
 
         return b.build();
     }
@@ -834,7 +841,7 @@ public class XmlThemeBuilder extends DefaultHandler {
         switch (element) {
             case RENDER_THEME:
                 if (!mElementStack.empty()) {
-                    throw new SAXException(UNEXPECTED_ELEMENT + elementName);
+                    throw new SAXException(UNEXPECTED_ELEMENT_STACK_NOT_EMPTY + elementName);
                 }
                 return;
 
@@ -842,33 +849,45 @@ public class XmlThemeBuilder extends DefaultHandler {
                 parentElement = mElementStack.peek();
                 if (parentElement != Element.RENDER_THEME
                         && parentElement != Element.RULE) {
-                    throw new SAXException(UNEXPECTED_ELEMENT + elementName);
+                    throw new SAXException(UNEXPECTED_ELEMENT_RULE_PARENT_ELEMENT_MISMATCH + elementName);
                 }
                 return;
 
             case STYLE:
                 parentElement = mElementStack.peek();
                 if (parentElement != Element.RENDER_THEME) {
-                    throw new SAXException(UNEXPECTED_ELEMENT + elementName);
+                    throw new SAXException(UNEXPECTED_ELEMENT_STYLE_PARENT_ELEMENT_MISMATCH + elementName);
                 }
                 return;
 
             case RENDERING_INSTRUCTION:
                 if (mElementStack.peek() != Element.RULE) {
-                    throw new SAXException(UNEXPECTED_ELEMENT + elementName);
+                    throw new SAXException(UNEXPECTED_ELEMENT_RENDERING_INSTRUCTION_PARENT_ELEMENT_MISMATCH + elementName);
                 }
                 return;
 
             case ATLAS:
                 parentElement = mElementStack.peek();
-                // FIXME
-                if (parentElement != Element.RENDER_THEME
-                        && parentElement != Element.ATLAS) {
-                    throw new SAXException(UNEXPECTED_ELEMENT + elementName);
+                if (parentElement != Element.RENDER_THEME) {
+                    throw new SAXException(UNEXPECTED_ELEMENT_ATLAS_PARENT_ELEMENT_MISMATCH + elementName);
+                }
+                return;
+
+            case RECT:
+                parentElement = mElementStack.peek();
+                if (parentElement != Element.ATLAS) {
+                    throw new SAXException(UNEXPECTED_ELEMENT_RECT_PARENT_ELEMENT_MISMATCH + elementName);
                 }
                 return;
 
             case RENDERING_STYLE:
+                return;
+
+            case TAG_TRANSFORM:
+                parentElement = mElementStack.peek();
+                if (parentElement != Element.RENDER_THEME) {
+                    throw new SAXException(UNEXPECTED_ELEMENT_TAG_TRANSFORM_PARENT_ELEMENT_MISMATCH + elementName);
+                }
                 return;
         }
 
@@ -899,7 +918,7 @@ public class XmlThemeBuilder extends DefaultHandler {
             else if ("map-background".equals(name)) {
                 mapBackground = Color.parseColor(value);
                 if (mThemeCallback != null)
-                    mapBackground = mThemeCallback.getColor(mapBackground);
+                    mapBackground = mThemeCallback.getColor(null, mapBackground);
 
             } else if ("base-stroke-width".equals(name))
                 baseStrokeWidth = Float.parseFloat(value);
@@ -992,6 +1011,9 @@ public class XmlThemeBuilder extends DefaultHandler {
 
             else if ("size".equals(name) || "font-size".equals(name))
                 b.fontSize = Float.parseFloat(value);
+
+            else if ("bg-fill".equals(name))
+                b.bgFillColor = Color.parseColor(value);
 
             else if ("fill".equals(name))
                 b.fillColor = Color.parseColor(value);
@@ -1195,6 +1217,15 @@ public class XmlThemeBuilder extends DefaultHandler {
             else if ("line-color".equals(name))
                 b.colorLine(Color.parseColor(value));
 
+            else if ("hsv-h".equals(name))
+                b.hsvHue(Double.parseDouble(value));
+
+            else if ("hsv-s".equals(name))
+                b.hsvSaturation(Double.parseDouble(value));
+
+            else if ("hsv-v".equals(name))
+                b.hsvValue(Double.parseDouble(value));
+
             else if ("default-height".equals(name))
                 b.defaultHeight(Integer.parseInt(value));
 
@@ -1237,6 +1268,44 @@ public class XmlThemeBuilder extends DefaultHandler {
             dashIntervals[i] = Float.parseFloat(dashEntries[i]);
         }
         return dashIntervals;
+    }
+
+    private void tagTransform(String localName, Attributes attributes) {
+        String k, v, libK, libV;
+        k = v = libK = libV = null;
+
+        for (int i = 0; i < attributes.getLength(); i++) {
+            String name = attributes.getLocalName(i);
+            String value = attributes.getValue(i);
+
+            switch (name) {
+                case "k":
+                    k = value;
+                    break;
+                case "v":
+                    v = value;
+                    break;
+                case "k-lib":
+                    libK = value;
+                    break;
+                case "v-lib":
+                    libV = value;
+                    break;
+                default:
+                    logUnknownAttribute(localName, name, value, i);
+            }
+        }
+
+        if (k == null || k.isEmpty() || libK == null || libK.isEmpty()) {
+            log.debug("empty key in element " + localName);
+            return;
+        }
+
+        if (v == null && libV == null) {
+            mTransformKeyMap.put(k, libK);
+        } else {
+            mTransformTagMap.put(new Tag(k, v), new Tag(libK, libV));
+        }
     }
 
     private static void validateNonNegative(String name, float value) {

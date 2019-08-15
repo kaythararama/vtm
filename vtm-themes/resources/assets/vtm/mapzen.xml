@@ -3,6 +3,17 @@
     version="1" xmlns="http://opensciencemap.org/rendertheme"
     xsi:schemaLocation="http://opensciencemap.org/rendertheme https://raw.githubusercontent.com/mapsforge/vtm/master/resources/rendertheme.xsd">
 
+    <!--<tag-transform k="kind" v="building" k-lib="building" v-lib="yes" />-->
+    <!--<tag-transform k="kind" v="building_part" k-lib="building:part" v-lib="yes" />-->
+    <tag-transform k="root_id" k-lib="ref" />
+
+    <tag-transform k="roof_color" k-lib="roof:colour" />
+    <tag-transform k="roof_direction" k-lib="roof:direction" />
+    <tag-transform k="roof_height" k-lib="roof:height" />
+    <tag-transform k="roof_material" k-lib="roof:material" />
+    <tag-transform k="roof_orientation" k-lib="roof:orientation" />
+    <tag-transform k="roof_shape" k-lib="roof:shape" />
+
     <!-- base style for fixed width lines -->
     <style-line cap="butt" fix="true" id="fix" width="1.0" />
 
@@ -14,7 +25,8 @@
 
     <style-text style="bold" fill="#606060" id="ref" k="ref" priority="2" size="12" stroke="#ffffff"
         stroke-width="2.0" />
-    <style-text caption="true" id="ref-caption" use="ref" />
+    <style-text caption="true" style="bold" fill="#ffffff" id="ref-caption" k="ref" priority="2"
+        size="12" bg-fill="#45a976" />
 
     <style-text style="bold" fill="#606060" id="ferry" k="name" size="12" stroke="#ffffff"
         stroke-width="2.0" />

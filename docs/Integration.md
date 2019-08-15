@@ -36,8 +36,8 @@ implementation 'org.mapsforge:vtm-android-gdx:[CURRENT-VERSION]:natives-armeabi-
 implementation 'org.mapsforge:vtm-android-gdx:[CURRENT-VERSION]:natives-arm64-v8a'
 implementation 'org.mapsforge:vtm-android-gdx:[CURRENT-VERSION]:natives-x86'
 implementation 'org.mapsforge:vtm-android-gdx:[CURRENT-VERSION]:natives-x86_64'
-implementation 'com.badlogicgames.gdx:gdx:1.9.8'
-implementation 'com.badlogicgames.gdx:gdx-backend-android:1.9.8'
+implementation 'com.badlogicgames.gdx:gdx:1.9.10'
+implementation 'com.badlogicgames.gdx:gdx-backend-android:1.9.10'
 implementation 'com.caverock:androidsvg:1.3'
 ```
 
@@ -56,14 +56,27 @@ implementation 'org.mapsforge:vtm-desktop:[CURRENT-VERSION]'
 implementation 'org.mapsforge:vtm-desktop:[CURRENT-VERSION]:natives-linux'
 implementation 'org.mapsforge:vtm-desktop:[CURRENT-VERSION]:natives-osx'
 implementation 'org.mapsforge:vtm-desktop:[CURRENT-VERSION]:natives-windows'
-implementation 'com.badlogicgames.gdx:gdx:1.9.8'
-implementation 'com.badlogicgames.gdx:gdx-platform:1.9.8:natives-desktop'
-implementation 'com.badlogicgames.gdx:gdx-backend-lwjgl:1.9.8'
+implementation 'org.mapsforge:vtm-desktop-lwjgl:[CURRENT-VERSION]'
+implementation 'com.badlogicgames.gdx:gdx:1.9.10'
+implementation 'com.badlogicgames.gdx:gdx-platform:1.9.10:natives-desktop'
+implementation 'com.badlogicgames.gdx:gdx-backend-lwjgl:1.9.10'
+implementation 'com.github.blackears:svgSalamander:v1.1.1'
+```
+
+### Desktop (LWJGL)
+```groovy
 implementation 'org.lwjgl.lwjgl:lwjgl:2.9.3'
 implementation 'org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-linux'
 implementation 'org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-osx'
 implementation 'org.lwjgl.lwjgl:lwjgl-platform:2.9.3:natives-windows'
-implementation 'com.github.blackears:svgSalamander:v1.1.1'
+```
+
+### Desktop (LWJGL 3)
+```groovy
+implementation 'org.lwjgl:lwjgl:3.2.1'
+implementation 'org.lwjgl:lwjgl:3.2.1:natives-linux'
+implementation 'org.lwjgl:lwjgl:3.2.1:natives-macos'
+implementation 'org.lwjgl:lwjgl:3.2.1:natives-windows'
 ```
 
 ### JTS geometries

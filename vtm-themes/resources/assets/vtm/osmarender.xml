@@ -34,7 +34,8 @@
     <!--references-->
     <style-text style="bold" fill="#606060" id="ref" k="ref" priority="2" size="12" stroke="#ffffff"
         stroke-width="2.0" />
-    <style-text caption="true" id="ref-caption" use="ref" />
+    <style-text caption="true" style="bold" fill="#ffffff" id="ref-caption" k="ref" priority="2"
+        size="12" bg-fill="#007f00" />
 
 
     <!--###### AREA styles ######-->
@@ -560,7 +561,8 @@
             </m>
 
             <m zoom-min="17">
-                <extrusion line-color="#506a5a8e" side-color="#eaf3d6b6" top-color="#eaf8d9b9" />
+                <extrusion hsv-s="0.2" hsv-v="1.4" line-color="#506a5a8e" side-color="#eaf3d6b6"
+                    top-color="#eaf8d9b9" />
             </m>
 
             <!--Only add house numbers where no name exist-->
@@ -1086,7 +1088,7 @@
                     </m>
                     <m v="4">
                         <line dasharray="15, 5, 5, 5" fix="true" stipple="4"
-                            stipple-stroke="#f9574b" stipple-width="0.9" stroke="#00000000"
+                            stipple-stroke="#f9574b" stipple-width="0.9" stroke="#80000000"
                             width="1.25" />
                     </m>
                     <m v="3">

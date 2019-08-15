@@ -1,6 +1,6 @@
 /*
  * Copyright 2013 Hannes Janetzek
- * Copyright 2016-2018 devemux86
+ * Copyright 2016-2019 devemux86
  *
  * This file is part of the OpenScienceMap project (http://www.opensciencemap.org).
  *
@@ -20,7 +20,6 @@ package org.oscim.app;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-
 import org.oscim.android.cache.TileCache;
 import org.oscim.layers.GenericLayer;
 import org.oscim.layers.Layer;
@@ -41,9 +40,11 @@ import org.oscim.tiling.source.oscimap4.OSciMap4TileSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+
 public class MapLayers {
 
-    final static Logger log = LoggerFactory.getLogger(MapLayers.class);
+    static final Logger log = LoggerFactory.getLogger(MapLayers.class);
 
     abstract static class Config {
         final String name;
@@ -56,15 +57,18 @@ public class MapLayers {
     }
 
     static Config[] configs = new Config[]{new Config("OPENSCIENCEMAP4") {
+        @Override
         TileSource init() {
             return new OSciMap4TileSource();
         }
     }, new Config("MAPSFORGE") {
+        @Override
         TileSource init() {
             return new MapFileTileSource().setOption("file",
-                    "/storage/sdcard0/germany.map");
+                    new File("/sdcard/berlin.map").getAbsolutePath());
         }
     }, new Config("MAPNIK_VECTOR") {
+        @Override
         TileSource init() {
             return new MapnikVectorTileSource();
         }

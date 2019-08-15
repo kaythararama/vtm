@@ -2,6 +2,7 @@
  * Copyright 2013 Hannes Janetzek
  * Copyright 2016-2018 Izumi Kawashima
  * Copyright 2017-2018 devemux86
+ * Copyright 2019 Gustl22
  *
  * This file is part of the OpenScienceMap project (http://www.opensciencemap.org).
  *
@@ -21,24 +22,28 @@ package org.oscim.web.client;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.gwt.GwtApplication;
 import com.badlogic.gdx.backends.gwt.GwtGraphics;
+import com.badlogic.gdx.graphics.glutils.GLVersion;
 
 import org.oscim.backend.AssetAdapter;
 import org.oscim.backend.CanvasAdapter;
+import org.oscim.backend.DateTimeAdapter;
 import org.oscim.backend.GL;
+import org.oscim.backend.GL30;
 import org.oscim.backend.GLAdapter;
 import org.oscim.core.MapPosition;
 import org.oscim.core.Tile;
 import org.oscim.gdx.GdxAssets;
 import org.oscim.gdx.GdxMap;
+import org.oscim.gdx.client.GwtDateTime;
 import org.oscim.gdx.client.GwtGdxGraphics;
 import org.oscim.gdx.client.MapConfig;
 import org.oscim.gdx.client.MapUrl;
+import org.oscim.gdx.poi3d.Poi3DLayer;
 import org.oscim.layers.tile.bitmap.BitmapTileLayer;
 import org.oscim.layers.tile.buildings.BuildingLayer;
 import org.oscim.layers.tile.buildings.S3DBTileLayer;
 import org.oscim.layers.tile.vector.VectorTileLayer;
 import org.oscim.layers.tile.vector.labeling.LabelLayer;
-import org.oscim.renderer.ExtrusionRenderer;
 import org.oscim.renderer.MapRenderer;
 import org.oscim.theme.StreamRenderTheme;
 import org.oscim.theme.VtmThemes;
@@ -71,12 +76,12 @@ class GwtMap extends GdxMap {
 
         GwtGdxGraphics.init();
         GdxAssets.init("");
+        DateTimeAdapter.init(new GwtDateTime());
         CanvasAdapter.textScale = 0.7f;
         CanvasAdapter.dpi = (int) (GwtGraphics.getDevicePixelRatioJSNI() * CanvasAdapter.DEFAULT_DPI);
         Tile.SIZE = Tile.calculateTileSize();
 
         log.debug("GLAdapter.init");
-        GLAdapter.init((GL) Gdx.graphics.getGL20());
         MapRenderer.setBackgroundColor(0xffffff);
         //Gdx.app.setLogLevel(Application.LOG_DEBUG);
 
@@ -150,15 +155,25 @@ class GwtMap extends GdxMap {
 
             if (!nobuildings && !s3db) {
                 mBuildingLayer = new BuildingLayer(mMap, l);
-                ((ExtrusionRenderer) mBuildingLayer.getRenderer()).setZLimit((float) 65536 / 10);
+                mBuildingLayer.getExtrusionRenderer().setZLimit((float) 65536 / 10);
                 mMap.layers().add(mBuildingLayer);
             }
+
+            mMap.layers().add(new Poi3DLayer(mMap, l));
 
             if (!nolabels)
                 mMap.layers().add(new LabelLayer(mMap, l));
         }
 
         mSearchBox = new SearchBox(mMap);
+    }
+
+    @Override
+    protected void initGLAdapter(GLVersion version) {
+        if (version.getMajorVersion() >= 3)
+            GLAdapter.init((GL30) Gdx.graphics.getGL30());
+        else
+            GLAdapter.init((GL) Gdx.graphics.getGL20());
     }
 
     @Override
@@ -171,7 +186,7 @@ class GwtMap extends GdxMap {
                     return;
                 }
 
-                ((ExtrusionRenderer) mBuildingLayer.getRenderer()).setZLimit((float) val / 10);
+                mBuildingLayer.getExtrusionRenderer().setZLimit((float) val / 10);
 
                 mMap.updateMap(true);
             }

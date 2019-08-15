@@ -535,15 +535,15 @@ public class LineBucket extends RenderBucket {
          * http://http.developer.nvidia.com/GPUGems2/gpugems2_chapter22.html */
 
         /* factor to normalize extrusion vector and scale to coord scale */
-        private final static float COORD_SCALE_BY_DIR_SCALE =
+        private static final float COORD_SCALE_BY_DIR_SCALE =
                 COORD_SCALE / LineBucket.DIR_SCALE;
 
-        private final static int CAP_THIN = 0;
-        private final static int CAP_BUTT = 1;
-        private final static int CAP_ROUND = 2;
+        private static final int CAP_THIN = 0;
+        private static final int CAP_BUTT = 1;
+        private static final int CAP_ROUND = 2;
 
-        private final static int SHADER_FLAT = 1;
-        private final static int SHADER_PROJ = 0;
+        private static final int SHADER_FLAT = 1;
+        private static final int SHADER_PROJ = 0;
 
         public static int mTexID;
         private static Shader[] shaders = {null, null};
@@ -618,7 +618,7 @@ public class LineBucket extends RenderBucket {
             gl.uniform1f(uLineFade, (float) pixel);
 
             int capMode = 0;
-            gl.uniform1f(uLineMode, capMode);
+            gl.uniform1i(uLineMode, capMode);
 
             boolean blur = false;
             double width;
@@ -682,16 +682,16 @@ public class LineBucket extends RenderBucket {
                     if (lb.scale < 1.5/* || lb.line.fixed*/) {
                         if (capMode != CAP_THIN) {
                             capMode = CAP_THIN;
-                            gl.uniform1f(uLineMode, capMode);
+                            gl.uniform1i(uLineMode, capMode);
                         }
                     } else if (lb.roundCap) {
                         if (capMode != CAP_ROUND) {
                             capMode = CAP_ROUND;
-                            gl.uniform1f(uLineMode, capMode);
+                            gl.uniform1i(uLineMode, capMode);
                         }
                     } else if (capMode != CAP_BUTT) {
                         capMode = CAP_BUTT;
-                        gl.uniform1f(uLineMode, capMode);
+                        gl.uniform1i(uLineMode, capMode);
                     }
 
                     gl.drawArrays(GL.TRIANGLE_STRIP,
@@ -733,11 +733,11 @@ public class LineBucket extends RenderBucket {
                     if (ref.roundCap) {
                         if (capMode != CAP_ROUND) {
                             capMode = CAP_ROUND;
-                            gl.uniform1f(uLineMode, capMode);
+                            gl.uniform1i(uLineMode, capMode);
                         }
                     } else if (capMode != CAP_BUTT) {
                         capMode = CAP_BUTT;
-                        gl.uniform1f(uLineMode, capMode);
+                        gl.uniform1i(uLineMode, capMode);
                     }
 
                     gl.drawArrays(GL.TRIANGLE_STRIP,

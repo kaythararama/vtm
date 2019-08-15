@@ -2,10 +2,11 @@
  * Copyright 2010, 2011, 2012 mapsforge.org
  * Copyright 2013, 2014 Hannes Janetzek
  * Copyright 2014-2015 Ludwig M Brinckmann
- * Copyright 2016-2018 devemux86
+ * Copyright 2016-2019 devemux86
  * Copyright 2016 Andrey Novikov
  * Copyright 2017-2018 Gustl22
  * Copyright 2018 Bezzu
+ * Copyright 2019 marq24
  *
  * This file is part of the OpenScienceMap project (http://www.opensciencemap.org).
  *
@@ -23,13 +24,8 @@
 package org.oscim.tiling.source.mapfile;
 
 import org.oscim.backend.CanvasAdapter;
-import org.oscim.core.BoundingBox;
-import org.oscim.core.GeoPoint;
+import org.oscim.core.*;
 import org.oscim.core.GeometryBuffer.GeometryType;
-import org.oscim.core.MapElement;
-import org.oscim.core.MercatorProjection;
-import org.oscim.core.Tag;
-import org.oscim.core.Tile;
 import org.oscim.layers.tile.MapTile;
 import org.oscim.layers.tile.buildings.BuildingLayer;
 import org.oscim.tiling.ITileDataSink;
@@ -460,7 +456,7 @@ public class MapDatabase implements ITileDataSource {
         mTileSeparator.setRect(xSmin, ySmin, xSmax, ySmax);
     }
 
-    //private final static Tag mWaterTag = new Tag("natural", "water");
+    //private static final Tag mWaterTag = new Tag("natural", "water");
 
     /**
      * Map rendering.
@@ -671,6 +667,9 @@ public class MapDatabase implements ITileDataSource {
                 e.tags.add(new Tag(Tag.KEY_ELE, str, false));
             }
             mTileProjection.projectPoint(latitude, longitude, e);
+
+            if (!mTileSeparator.separate(e))
+                continue;
 
             e.setLayer(layer);
 
@@ -965,7 +964,30 @@ public class MapDatabase implements ITileDataSource {
 
                 if (labelPosition != null && wayDataBlock == 0)
                     e.setLabelPosition(e.points[0] + labelPosition[0], e.points[1] + labelPosition[1]);
+                else
+                    e.labelPosition = null;
+
                 mTileProjection.project(e);
+
+                // When a way will be rendered then typically a label / symbol will be applied
+                // by the render theme. If the way does not come with a defined labelPosition
+                // we should calculate a position, that is based on all points of the given way.
+                // This "auto" position calculation is also done in the LabelTileLoaderHook class
+                // but then the points of the way have been already reduced cause of the clipping
+                // that is happening. So the suggestion here is to calculate the centroid of the way
+                // and use that as centroidPosition of the element.
+                if (Parameters.POLY_CENTROID && e.labelPosition == null) {
+                    float x = 0;
+                    float y = 0;
+                    int n = e.index[0];
+                    for (int i = 0; i < n; ) {
+                        x += e.points[i++];
+                        y += e.points[i++];
+                    }
+                    x /= (n / 2);
+                    y /= (n / 2);
+                    e.setCentroidPosition(x, y);
+                }
 
                 // Avoid clipping for buildings, which slows rendering.
                 // But clip everything if buildings are displayed.
@@ -1275,6 +1297,10 @@ public class MapDatabase implements ITileDataSource {
             if (e.labelPosition != null) {
                 e.labelPosition.x = projectLon(e.labelPosition.x);
                 e.labelPosition.y = projectLat(e.labelPosition.y);
+            }
+            if (e.centroidPosition != null) {
+                e.centroidPosition.x = projectLon(e.centroidPosition.x);
+                e.centroidPosition.y = projectLat(e.centroidPosition.y);
             }
         }
     }
