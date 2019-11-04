@@ -1,7 +1,20 @@
 # Changelog
 
-## New since 0.11.1
+## New since 0.12.0
 
+- Render themes: symbols on lines with billboard / rotation [#743](https://github.com/mapsforge/vtm/pull/743)
+- Location texture renderer: rewrite and optimize [#750](https://github.com/mapsforge/vtm/pull/750)
+- Android: OpenGL ES 2.0 default for performance / stability [#749](https://github.com/mapsforge/vtm/pull/749)
+  - `MapView.OPENGL_VERSION`
+- Android: threaded system initialization
+  - `Parameters.THREADED_INIT`
+- Many other minor improvements and bug fixes
+- [Solved issues](https://github.com/mapsforge/vtm/issues?q=is%3Aclosed+milestone%3A0.13.0)
+
+## Version 0.12.0 (2019-09-17)
+
+- MBTiles vector tile source (Android) [#740](https://github.com/mapsforge/vtm/pull/740)
+  - vtm-android-mvt module
 - Render themes: text background color [#737](https://github.com/mapsforge/vtm/pull/737)
 - vtm-desktop-lwjgl module [#714](https://github.com/mapsforge/vtm/pull/714)
 - vtm-desktop-lwjgl3 module [#717](https://github.com/mapsforge/vtm/pull/717)

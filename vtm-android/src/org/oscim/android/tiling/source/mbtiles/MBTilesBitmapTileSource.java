@@ -1,6 +1,7 @@
 /*
  * Copyright 2019 Andrea Antonello
  * Copyright 2019 devemux86
+ * Copyright 2019 Kostas Tzounopoulos
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -15,19 +16,13 @@
  */
 package org.oscim.android.tiling.source.mbtiles;
 
-import org.oscim.core.BoundingBox;
-import org.oscim.tiling.ITileDataSource;
-import org.oscim.tiling.TileSource;
-
 /**
  * A tile source for MBTiles raster databases.
  */
-public class MBTilesBitmapTileSource extends TileSource {
-
-    private final MBTilesBitmapTileDataSource mTileDataSource;
+public class MBTilesBitmapTileSource extends MBTilesTileSource {
 
     /**
-     * Create a MBTiles tile source.
+     * Create a tile source for MBTiles raster databases.
      *
      * @param path the path to the MBTiles database.
      */
@@ -36,64 +31,13 @@ public class MBTilesBitmapTileSource extends TileSource {
     }
 
     /**
-     * Create a MBTiles tile source.
+     * Create a tile source for MBTiles raster databases.
      *
      * @param path             the path to the MBTiles database.
      * @param alpha            an optional alpha value [0-255] to make the tiles transparent.
      * @param transparentColor an optional color that will be made transparent in the bitmap.
      */
     public MBTilesBitmapTileSource(String path, Integer alpha, Integer transparentColor) {
-        mTileDataSource = new MBTilesBitmapTileDataSource(path, alpha, transparentColor);
-    }
-
-    @Override
-    public void close() {
-        mTileDataSource.dispose();
-    }
-
-
-    public String getAttribution() {
-        return mTileDataSource.getAttribution();
-    }
-
-    public BoundingBox getBounds() {
-        return mTileDataSource.getBounds();
-    }
-
-    @Override
-    public ITileDataSource getDataSource() {
-        return mTileDataSource;
-    }
-
-    public String getDescription() {
-        return mTileDataSource.getDescription();
-    }
-
-    /**
-     * @return the image format (jpg, png)
-     */
-    public String getFormat() {
-        return mTileDataSource.getFormat();
-    }
-
-    public int getMaxZoom() {
-        return mTileDataSource.getMaxZoom();
-    }
-
-    public int getMinZoom() {
-        return mTileDataSource.getMinZoom();
-    }
-
-    public String getName() {
-        return mTileDataSource.getName();
-    }
-
-    public String getVersion() {
-        return mTileDataSource.getVersion();
-    }
-
-    @Override
-    public OpenResult open() {
-        return OpenResult.SUCCESS;
+        super(new MBTilesBitmapTileDataSource(path, alpha, transparentColor));
     }
 }

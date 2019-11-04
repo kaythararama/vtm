@@ -635,7 +635,7 @@ public class XmlThemeBuilder extends DefaultHandler {
                 transparent = !transparent;
             }
             b.texture = new TextureItem(Utils.potBitmap(bitmap));
-            b.texture.mipmap = true;
+            //b.texture.mipmap = true;
             b.randomOffset = false;
             b.stipple = width;
             b.stippleWidth = 1;
@@ -653,7 +653,7 @@ public class XmlThemeBuilder extends DefaultHandler {
                 canvas.setBitmap(bitmap);
                 canvas.drawBitmap(b.texture.bitmap, b.repeatStart, 0);
                 b.texture = new TextureItem(Utils.potBitmap(bitmap));
-                b.texture.mipmap = true;
+                //b.texture.mipmap = true;
                 b.fixed = true;
                 b.randomOffset = false;
                 b.stipple = width;
@@ -1163,6 +1163,9 @@ public class XmlThemeBuilder extends DefaultHandler {
             else if ("symbol-scaling".equals(name))
                 ; // no-op
 
+            else if ("billboard".equals(name))
+                b.billboard(Boolean.parseBoolean(value));
+
             else if ("repeat".equals(name))
                 b.repeat(Boolean.parseBoolean(value));
 
@@ -1171,6 +1174,9 @@ public class XmlThemeBuilder extends DefaultHandler {
 
             else if ("repeat-gap".equals(name))
                 b.repeatGap = Float.parseFloat(value) * mScale;
+
+            else if ("rotate".equals(name))
+                b.rotate(Boolean.parseBoolean(value));
 
             else
                 logUnknownAttribute(elementName, name, value, i);
